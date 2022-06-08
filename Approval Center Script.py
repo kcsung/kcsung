@@ -27,17 +27,24 @@ log_file = open( log_des + '\Transaction Log_' + runtime + '.txt', 'w', newline 
 log_file.write("Invoice Title\tRow Number")
 csv_writer = csv.writer(file_to_output, delimiter = ',')
 #Hard Code Header
-csv_writer.writerow(['Vendor number','Vendor Name', 'Invoice Date','Invoice Number', 'Type', 'Dim 1', 'Dim 2', 'Dim 3', 'Account number', 'Purchase item/Description', 'Delivery quantity','Unit price'])
+csv_writer.writerow(['Request ID','Vendor number','Vendor Name', 'Invoice Date','Invoice Number', 'Type', 'Dim 1', 'Dim 2', 'Dim 3', 'Account number', 'Purchase item/Description', 'Delivery quantity','Unit price'])
 CustomTabLoop = []
 ExpenseLoop = []
 count = 0
 count_invoice = 0
 for p in data_lines[1:]: #Skipping Title row
-    Title = p[0] #Retrieve Title, Payment template, Good Receving template
-    Location = p[1] #Retrieve Location
+    #RequestID 20220608
+    RequestID = []
+    RequestID.append(p[0]) #Append RequestID
+    #Title
+    Title = p[1]
+    #Location
+    Location = p[2]
     count_invoice += 1
-    if p[2] not in '': #Remove blank field (CustomTabJSON)
-        CustomTabLoop.append(p[2]) #put it into a list
+
+    #CustomTabJSON
+    if p[3] not in '': #Remove blank field (CustomTabJSON)
+        CustomTabLoop.append(p[3]) #put it into a list
         a = CustomTabLoop[count] # select specific list = string
         z = json.loads(a) #convert string to json format
         code = []
@@ -71,9 +78,9 @@ for p in data_lines[1:]: #Skipping Title row
         #Invoice_number = z[0]["Invoice number"] #vendor number
         #log_file.write('\n' + Title + ' \t' +  str(count_invoice))
 
-
-    if p[3] not in '':
-        txt = json.loads(p[3])
+    #ExpenseDetailsJSON
+    if p[4] not in '':
+        txt = json.loads(p[4])
         Type = []
         Dim_1 = []
         Dim_2 = []
@@ -82,6 +89,7 @@ for p in data_lines[1:]: #Skipping Title row
         Account_number = []
         Purchase_qty = []
         Unit_Price = []
+        PriceDeduction = []
         #20220311 if only 1 detail record vs >1 records        
         if len(txt) == 1:
             length = len(txt)
@@ -138,10 +146,18 @@ for p in data_lines[1:]: #Skipping Title row
             elif "CustomField7" in txt[i]: #Payment
                 Unit_Price.append(txt[i]["CustomField7"])
             else:
-                Unit_Price.append('')    
-
+                Unit_Price.append('')
+            #Check Price Deduction 20220608
+            if "CustomField14" in txt[i]:
+                PriceDeduction.append(txt[i]["CustomField14"]) #Good Receiving, no price deduction in payment
+            else:
+                PriceDeduction.append('')
+            #Write Normal Row
             if Type[i] in ['Opex', 'Capex'] and Purchase_qty[i] not in ['',0]:
-                csv_writer.writerow([code[-1],vendorname[-1], inv_date[-1], inv_no[-1], Type[i], Dim_1[i], Dim_2[i], Dim_3[i], Account_number[i][0:7], Purchase_item_Description[i], Purchase_qty[i], Unit_Price[i]])               
+                csv_writer.writerow([RequestID[-1], code[-1],vendorname[-1], inv_date[-1], inv_no[-1], Type[i], Dim_1[i], Dim_2[i], Dim_3[i], Account_number[i][0:7], Purchase_item_Description[i], Purchase_qty[i], Unit_Price[i]])               
+            #Write Deduction Row
+            if PriceDeduction[i] not in ['',0]:
+                csv_writer.writerow([RequestID[-1], code[-1],vendorname[-1], inv_date[-1], inv_no[-1], Type[i], Dim_1[i], Dim_2[i], Dim_3[i], Account_number[i][0:7], Purchase_item_Description[i], 1, PriceDeduction[i]])               
                 #PS: code[-1], inv_date[-1] means always take last element from a list 20220309
     count += 1
     #z.pop(0) #remove first dictionary
